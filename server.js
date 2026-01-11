@@ -5,6 +5,9 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// URL de Google Sheets Webhook
+const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyyGV7yVw-k1ZNwU__0qvUhcuXD1rl98pURjgax6uEHBsIfbNbOGmhf6u698Srfwhf6RA/exec';
+
 // Middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -74,6 +77,23 @@ for (const [key, value] of Object.entries(defaultConfig)) {
 // Función para generar ID de orden
 function generateOrderId() {
   return 'ORD-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substr(2, 4).toUpperCase();
+}
+
+// Función para enviar a Google Sheets
+async function sendToGoogleSheets(data) {
+  try {
+    const response = await fetch(GOOGLE_SHEETS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const result = await response.json();
+    console.log('✅ Guardado en Google Sheets:', result);
+    return true;
+  } catch (error) {
+    console.error('❌ Error Google Sheets:', error.message);
+    return false;
+  }
 }
 
 // Función para crear mensaje de WhatsApp
@@ -240,8 +260,8 @@ app.get('/api/sold', (req, res) => {
   }
 });
 
-// Crear pedido
-app.post('/api/orders', (req, res) => {
+// Crear pedido (cuando el cliente envía su compra)
+app.post('/api/orders', async (req, res) => {
   try {
     const { name, email, phone, numbers, qty, total, image } = req.body;
     const order_id = generateOrderId();
@@ -250,6 +270,18 @@ app.post('/api/orders', (req, res) => {
       INSERT INTO orders (order_id, name, email, phone, numbers, qty, total, image, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')
     `).run(order_id, name, email, phone, JSON.stringify(numbers), qty, total, image);
+    
+    // Guardar en Google Sheets como PENDIENTE
+    await sendToGoogleSheets({
+      order_id,
+      name,
+      email,
+      phone,
+      numbers: numbers.join(', '),
+      qty,
+      total,
+      status: 'PENDIENTE'
+    });
     
     saveLocalBackup();
     
@@ -282,7 +314,7 @@ app.get('/api/orders/confirmed', (req, res) => {
 });
 
 // Confirmar pedido
-app.post('/api/orders/:id/confirm', (req, res) => {
+app.post('/api/orders/:id/confirm', async (req, res) => {
   try {
     const { id } = req.params;
     const order = db.prepare('SELECT * FROM orders WHERE order_id = ?').get(id);
@@ -299,6 +331,18 @@ app.post('/api/orders/:id/confirm', (req, res) => {
     // Agregar números vendidos
     const insertSold = db.prepare('INSERT OR IGNORE INTO sold_numbers (number, order_id) VALUES (?, ?)');
     numbers.forEach(num => insertSold.run(num, id));
+    
+    // Guardar en Google Sheets como CONFIRMADO
+    await sendToGoogleSheets({
+      order_id: order.order_id,
+      name: order.name,
+      email: order.email,
+      phone: order.phone,
+      numbers: numbers.join(', '),
+      qty: order.qty,
+      total: order.total,
+      status: '✅ CONFIRMADO'
+    });
     
     // Guardar respaldo
     saveLocalBackup();
@@ -328,8 +372,24 @@ app.post('/api/orders/:id/confirm', (req, res) => {
 });
 
 // Rechazar pedido
-app.post('/api/orders/:id/reject', (req, res) => {
+app.post('/api/orders/:id/reject', async (req, res) => {
   try {
+    const order = db.prepare('SELECT * FROM orders WHERE order_id = ?').get(req.params.id);
+    
+    if (order) {
+      // Guardar en Google Sheets como RECHAZADO
+      await sendToGoogleSheets({
+        order_id: order.order_id,
+        name: order.name,
+        email: order.email,
+        phone: order.phone,
+        numbers: JSON.parse(order.numbers).join(', '),
+        qty: order.qty,
+        total: order.total,
+        status: '❌ RECHAZADO'
+      });
+    }
+    
     db.prepare('DELETE FROM orders WHERE order_id = ?').run(req.params.id);
     res.json({ success: true });
   } catch (error) {
@@ -426,6 +486,7 @@ app.listen(PORT, () => {
   console.log('║  🎁 FundaBenefica - Servidor Iniciado      ║');
   console.log('╠════════════════════════════════════════════╣');
   console.log(`║  🌐 Puerto: ${PORT}                            ║`);
+  console.log('║  📊 Google Sheets: CONECTADO               ║');
   console.log('║  🗄️  Base de datos: fundabenefica.db       ║');
   console.log('║  🔑 Contraseña admin: admin123             ║');
   console.log('╚════════════════════════════════════════════╝');
