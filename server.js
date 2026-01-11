@@ -1,402 +1,433 @@
 const express = require('express');
 const Database = require('better-sqlite3');
-const multer = require('multer');
-const cors = require('cors');
 const path = require('path');
-const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors());
 app.use(express.json({ limit: '50mb' }));
-app.use(express.static('public'));
-app.use('/uploads', express.static('uploads'));
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Crear carpeta uploads
-if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
-
-// Configurar multer para subida de archivos
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, 'uploads/'),
-    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
-});
-const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
-
-// ============ BASE DE DATOS ============
-const db = new Database('fundabenefica.db');
+// Base de datos
+const dbPath = path.join(__dirname, 'fundabenefica.db');
+const db = new Database(dbPath);
 
 // Crear tablas
 db.exec(`
-    -- Configuración general
-    CREATE TABLE IF NOT EXISTS config (
-        key TEXT PRIMARY KEY,
-        value TEXT
-    );
-
-    -- Pedidos
-    CREATE TABLE IF NOT EXISTS orders (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        order_id TEXT UNIQUE,
-        name TEXT NOT NULL,
-        email TEXT NOT NULL,
-        phone TEXT NOT NULL,
-        numbers TEXT NOT NULL,
-        qty INTEGER NOT NULL,
-        total REAL NOT NULL,
-        image TEXT,
-        status TEXT DEFAULT 'pending',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    -- Números vendidos
-    CREATE TABLE IF NOT EXISTS sold_numbers (
-        number TEXT PRIMARY KEY,
-        order_id TEXT,
-        confirmed_at DATETIME
-    );
-
-    -- Imágenes del premio
-    CREATE TABLE IF NOT EXISTS prize_images (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        image_data TEXT,
-        position INTEGER
-    );
-
-    -- Métodos de pago
-    CREATE TABLE IF NOT EXISTS payment_methods (
-        id TEXT PRIMARY KEY,
-        data TEXT
-    );
+  CREATE TABLE IF NOT EXISTS config (
+    key TEXT PRIMARY KEY,
+    value TEXT
+  );
+  CREATE TABLE IF NOT EXISTS orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id TEXT UNIQUE,
+    name TEXT,
+    email TEXT,
+    phone TEXT,
+    numbers TEXT,
+    qty INTEGER,
+    total REAL,
+    image TEXT,
+    status TEXT DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS sold_numbers (
+    number TEXT PRIMARY KEY,
+    order_id TEXT,
+    confirmed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS prize_images (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    image_data TEXT,
+    position INTEGER
+  );
+  CREATE TABLE IF NOT EXISTS payment_methods (
+    type TEXT PRIMARY KEY,
+    data TEXT
+  );
+  CREATE TABLE IF NOT EXISTS backups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    data TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 // Configuración por defecto
 const defaultConfig = {
-    adminPass: 'admin123',
-    prizeTitle: 'Gran Premio',
-    prizeDescription: 'Participa en nuestra rifa solidaria.',
-    prizeDate: '',
-    prizeTime: '',
-    prizePrice: '10',
-    prizeDigits: '4'
+  adminPass: 'admin123',
+  prizeTitle: 'Gran Premio',
+  prizeDescription: 'Participa en nuestra rifa solidaria',
+  prizeDate: '',
+  prizeTime: '',
+  prizePrice: '10',
+  prizeDigits: '4'
 };
 
-// Insertar config por defecto si no existe
-const insertConfig = db.prepare('INSERT OR IGNORE INTO config (key, value) VALUES (?, ?)');
-Object.entries(defaultConfig).forEach(([k, v]) => insertConfig.run(k, v));
+for (const [key, value] of Object.entries(defaultConfig)) {
+  const exists = db.prepare('SELECT 1 FROM config WHERE key = ?').get(key);
+  if (!exists) {
+    db.prepare('INSERT INTO config (key, value) VALUES (?, ?)').run(key, value);
+  }
+}
 
-// Métodos de pago por defecto
-const defaultPayments = {
-    zelle: JSON.stringify({ email: 'pagos@fundabenefica.com', phone: '+1 555 123-4567', name: 'FundaBenefica' }),
-    bank: JSON.stringify({ name: 'Bank of America', account: '1234567890', routing: '026009593', beneficiary: 'FundaBenefica' }),
-    paypal: JSON.stringify({ email: 'paypal@fundabenefica.com', link: 'paypal.me/fundabenefica' })
-};
-const insertPayment = db.prepare('INSERT OR IGNORE INTO payment_methods (id, data) VALUES (?, ?)');
-Object.entries(defaultPayments).forEach(([k, v]) => insertPayment.run(k, v));
+// Función para generar ID de orden
+function generateOrderId() {
+  return 'ORD-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substr(2, 4).toUpperCase();
+}
 
-// ============ HELPERS ============
-const getConfig = (key) => {
-    const row = db.prepare('SELECT value FROM config WHERE key = ?').get(key);
-    return row ? row.value : null;
-};
+// Función para crear mensaje de WhatsApp
+function createWhatsAppMessage(order) {
+  const message = `🎉 *¡PAGO CONFIRMADO!*
 
-const setConfig = (key, value) => {
-    db.prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)').run(key, value);
-};
+Hola *${order.name}*, tu compra ha sido verificada.
 
-const getAllConfig = () => {
-    const rows = db.prepare('SELECT * FROM config').all();
-    const config = {};
-    rows.forEach(r => config[r.key] = r.value);
-    return config;
-};
+📋 *Detalles:*
+• Orden: ${order.order_id}
+• Cantidad: ${order.qty} números
+• Total: $${order.total}
+
+🎫 *Tus números son:*
+${order.numbers.join(', ')}
+
+¡Buena suerte! 🍀
+
+_FundaBenefica - Rifa Solidaria_`;
+
+  return encodeURIComponent(message);
+}
+
+// Función para guardar respaldo local
+function saveLocalBackup() {
+  try {
+    const orders = db.prepare('SELECT * FROM orders').all();
+    const soldNumbers = db.prepare('SELECT * FROM sold_numbers').all();
+    const config = db.prepare('SELECT * FROM config').all();
+    
+    const backup = {
+      timestamp: new Date().toISOString(),
+      orders,
+      soldNumbers,
+      config
+    };
+    
+    db.prepare('INSERT INTO backups (data) VALUES (?)').run(JSON.stringify(backup));
+    db.exec('DELETE FROM backups WHERE id NOT IN (SELECT id FROM backups ORDER BY id DESC LIMIT 50)');
+    
+    return backup;
+  } catch (error) {
+    console.error('Error guardando respaldo:', error);
+    return null;
+  }
+}
 
 // ============ RUTAS API ============
 
-// Obtener configuración completa
+// Obtener configuración
 app.get('/api/config', (req, res) => {
-    try {
-        const config = getAllConfig();
-        const payments = {};
-        db.prepare('SELECT * FROM payment_methods').all().forEach(p => {
-            payments[p.id] = JSON.parse(p.data);
-        });
-        const images = db.prepare('SELECT * FROM prize_images ORDER BY position').all();
-        const soldCount = db.prepare('SELECT COUNT(*) as count FROM sold_numbers').get().count;
-        
-        res.json({
-            success: true,
-            config,
-            payments,
-            images: images.map(i => i.image_data),
-            soldCount
-        });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
+  try {
+    const configRows = db.prepare('SELECT * FROM config').all();
+    const config = {};
+    configRows.forEach(row => config[row.key] = row.value);
+    
+    const paymentRows = db.prepare('SELECT * FROM payment_methods').all();
+    const payments = {};
+    paymentRows.forEach(row => payments[row.type] = JSON.parse(row.data));
+    
+    const imageRows = db.prepare('SELECT * FROM prize_images ORDER BY position').all();
+    const images = [];
+    imageRows.forEach(row => images[row.position] = row.image_data);
+    
+    const soldCount = db.prepare('SELECT COUNT(*) as count FROM sold_numbers').get().count;
+    
+    res.json({ success: true, config, payments, images: images.filter(Boolean), soldCount });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
 });
 
 // Guardar configuración del premio
 app.post('/api/config/prize', (req, res) => {
-    try {
-        const { title, description, date, time, price, digits } = req.body;
-        const oldDigits = getConfig('prizeDigits');
-        
-        // Si cambian las cifras, limpiar números vendidos
-        if (digits && digits !== oldDigits) {
-            db.prepare('DELETE FROM sold_numbers').run();
-            db.prepare('DELETE FROM orders').run();
-        }
-        
-        if (title !== undefined) setConfig('prizeTitle', title);
-        if (description !== undefined) setConfig('prizeDescription', description);
-        if (date !== undefined) setConfig('prizeDate', date);
-        if (time !== undefined) setConfig('prizeTime', time);
-        if (price !== undefined) setConfig('prizePrice', price.toString());
-        if (digits !== undefined) setConfig('prizeDigits', digits.toString());
-        
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
+  try {
+    const { title, description, date, time, price, digits } = req.body;
+    
+    const currentDigits = db.prepare('SELECT value FROM config WHERE key = ?').get('prizeDigits')?.value;
+    
+    if (digits && digits !== currentDigits) {
+      db.exec('DELETE FROM sold_numbers');
+      db.exec('DELETE FROM orders');
     }
+    
+    if (title !== undefined) db.prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)').run('prizeTitle', title);
+    if (description !== undefined) db.prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)').run('prizeDescription', description);
+    if (date !== undefined) db.prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)').run('prizeDate', date);
+    if (time !== undefined) db.prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)').run('prizeTime', time);
+    if (price !== undefined) db.prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)').run('prizePrice', price);
+    if (digits !== undefined) db.prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)').run('prizeDigits', digits);
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
 });
 
 // Guardar método de pago
 app.post('/api/config/payment/:type', (req, res) => {
-    try {
-        const { type } = req.params;
-        db.prepare('INSERT OR REPLACE INTO payment_methods (id, data) VALUES (?, ?)').run(type, JSON.stringify(req.body));
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
+  try {
+    const { type } = req.params;
+    db.prepare('INSERT OR REPLACE INTO payment_methods (type, data) VALUES (?, ?)').run(type, JSON.stringify(req.body));
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
 });
 
-// Cambiar contraseña admin
+// Cambiar contraseña
 app.post('/api/config/password', (req, res) => {
-    try {
-        const { password } = req.body;
-        if (!password || password.length < 4) {
-            return res.status(400).json({ success: false, error: 'Mínimo 4 caracteres' });
-        }
-        setConfig('adminPass', password);
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
+  try {
+    const { password } = req.body;
+    if (password && password.length >= 4) {
+      db.prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)').run('adminPass', password);
+      res.json({ success: true });
+    } else {
+      res.json({ success: false, error: 'Contraseña muy corta' });
     }
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
 });
 
-// Verificar contraseña admin
+// Verificar contraseña
 app.post('/api/auth', (req, res) => {
-    try {
-        const { password } = req.body;
-        const adminPass = getConfig('adminPass');
-        res.json({ success: password === adminPass });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
+  try {
+    const { password } = req.body;
+    const adminPass = db.prepare('SELECT value FROM config WHERE key = ?').get('adminPass')?.value || 'admin123';
+    res.json({ success: password === adminPass });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
 });
 
-// Subir imagen del premio
+// Subir imagen
 app.post('/api/images', (req, res) => {
-    try {
-        const { image, position } = req.body;
-        db.prepare('INSERT INTO prize_images (image_data, position) VALUES (?, ?)').run(image, position);
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
+  try {
+    const { image, position } = req.body;
+    db.prepare('DELETE FROM prize_images WHERE position = ?').run(position);
+    db.prepare('INSERT INTO prize_images (image_data, position) VALUES (?, ?)').run(image, position);
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
 });
 
-// Eliminar imagen del premio
+// Eliminar imagen
 app.delete('/api/images/:position', (req, res) => {
-    try {
-        const { position } = req.params;
-        db.prepare('DELETE FROM prize_images WHERE position = ?').run(position);
-        // Reordenar posiciones
-        const images = db.prepare('SELECT * FROM prize_images ORDER BY position').all();
-        db.prepare('DELETE FROM prize_images').run();
-        images.forEach((img, idx) => {
-            db.prepare('INSERT INTO prize_images (image_data, position) VALUES (?, ?)').run(img.image_data, idx);
-        });
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
+  try {
+    db.prepare('DELETE FROM prize_images WHERE position = ?').run(parseInt(req.params.position));
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
 });
 
 // Obtener números vendidos
 app.get('/api/sold', (req, res) => {
-    try {
-        const numbers = db.prepare('SELECT number FROM sold_numbers').all().map(r => r.number);
-        res.json({ success: true, numbers });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
+  try {
+    const rows = db.prepare('SELECT number FROM sold_numbers').all();
+    res.json({ success: true, numbers: rows.map(r => r.number) });
+  } catch (error) {
+    res.json({ success: false, numbers: [] });
+  }
 });
 
 // Crear pedido
 app.post('/api/orders', (req, res) => {
-    try {
-        const { name, email, phone, numbers, qty, total, image } = req.body;
-        const orderId = 'ORD-' + Date.now();
-        
-        db.prepare(`
-            INSERT INTO orders (order_id, name, email, phone, numbers, qty, total, image, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')
-        `).run(orderId, name, email, phone, JSON.stringify(numbers), qty, total, image);
-        
-        res.json({ success: true, orderId });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
+  try {
+    const { name, email, phone, numbers, qty, total, image } = req.body;
+    const order_id = generateOrderId();
+    
+    db.prepare(`
+      INSERT INTO orders (order_id, name, email, phone, numbers, qty, total, image, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+    `).run(order_id, name, email, phone, JSON.stringify(numbers), qty, total, image);
+    
+    saveLocalBackup();
+    
+    res.json({ success: true, order_id });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
 });
 
 // Obtener pedidos pendientes
 app.get('/api/orders/pending', (req, res) => {
-    try {
-        const orders = db.prepare("SELECT * FROM orders WHERE status = 'pending' ORDER BY created_at DESC").all();
-        orders.forEach(o => o.numbers = JSON.parse(o.numbers));
-        res.json({ success: true, orders });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
+  try {
+    const orders = db.prepare('SELECT * FROM orders WHERE status = ? ORDER BY created_at DESC').all('pending');
+    orders.forEach(o => o.numbers = JSON.parse(o.numbers));
+    res.json({ success: true, orders });
+  } catch (error) {
+    res.json({ success: false, orders: [] });
+  }
 });
 
 // Obtener pedidos confirmados
 app.get('/api/orders/confirmed', (req, res) => {
-    try {
-        const orders = db.prepare("SELECT * FROM orders WHERE status = 'confirmed' ORDER BY created_at DESC").all();
-        orders.forEach(o => o.numbers = JSON.parse(o.numbers));
-        res.json({ success: true, orders });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
+  try {
+    const orders = db.prepare('SELECT * FROM orders WHERE status = ? ORDER BY created_at DESC').all('confirmed');
+    orders.forEach(o => o.numbers = JSON.parse(o.numbers));
+    res.json({ success: true, orders });
+  } catch (error) {
+    res.json({ success: false, orders: [] });
+  }
 });
 
 // Confirmar pedido
 app.post('/api/orders/:id/confirm', (req, res) => {
-    try {
-        const { id } = req.params;
-        const order = db.prepare('SELECT * FROM orders WHERE order_id = ?').get(id);
-        
-        if (!order) {
-            return res.status(404).json({ success: false, error: 'Pedido no encontrado' });
-        }
-        
-        const numbers = JSON.parse(order.numbers);
-        const insertSold = db.prepare('INSERT OR IGNORE INTO sold_numbers (number, order_id, confirmed_at) VALUES (?, ?, datetime("now"))');
-        numbers.forEach(n => insertSold.run(n, id));
-        
-        db.prepare("UPDATE orders SET status = 'confirmed' WHERE order_id = ?").run(id);
-        
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
+  try {
+    const { id } = req.params;
+    const order = db.prepare('SELECT * FROM orders WHERE order_id = ?').get(id);
+    
+    if (!order) {
+      return res.json({ success: false, error: 'Pedido no encontrado' });
     }
+    
+    const numbers = JSON.parse(order.numbers);
+    
+    // Marcar como confirmado
+    db.prepare('UPDATE orders SET status = ? WHERE order_id = ?').run('confirmed', id);
+    
+    // Agregar números vendidos
+    const insertSold = db.prepare('INSERT OR IGNORE INTO sold_numbers (number, order_id) VALUES (?, ?)');
+    numbers.forEach(num => insertSold.run(num, id));
+    
+    // Guardar respaldo
+    saveLocalBackup();
+    
+    // Crear link de WhatsApp
+    const whatsappMessage = createWhatsAppMessage({
+      name: order.name,
+      order_id: order.order_id,
+      qty: order.qty,
+      total: order.total,
+      numbers
+    });
+    
+    // Limpiar número de teléfono
+    const cleanPhone = order.phone.replace(/[^0-9]/g, '');
+    const whatsappLink = `https://wa.me/${cleanPhone}?text=${whatsappMessage}`;
+    
+    res.json({ 
+      success: true, 
+      whatsappLink,
+      message: 'Pedido confirmado'
+    });
+  } catch (error) {
+    console.error('Error confirmando pedido:', error);
+    res.json({ success: false, error: error.message });
+  }
 });
 
 // Rechazar pedido
 app.post('/api/orders/:id/reject', (req, res) => {
-    try {
-        const { id } = req.params;
-        db.prepare('DELETE FROM orders WHERE order_id = ?').run(id);
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
+  try {
+    db.prepare('DELETE FROM orders WHERE order_id = ?').run(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
 });
 
 // Buscar ganador
 app.get('/api/winner/:number', (req, res) => {
-    try {
-        const { number } = req.params;
-        
-        // Buscar en confirmados
-        const orders = db.prepare("SELECT * FROM orders WHERE status = 'confirmed'").all();
-        for (const order of orders) {
-            const numbers = JSON.parse(order.numbers);
-            if (numbers.includes(number)) {
-                order.numbers = numbers;
-                return res.json({ success: true, found: true, status: 'confirmed', order });
-            }
-        }
-        
-        // Buscar en pendientes
-        const pending = db.prepare("SELECT * FROM orders WHERE status = 'pending'").all();
-        for (const order of pending) {
-            const numbers = JSON.parse(order.numbers);
-            if (numbers.includes(number)) {
-                order.numbers = numbers;
-                return res.json({ success: true, found: true, status: 'pending', order });
-            }
-        }
-        
-        // Verificar si está vendido
-        const sold = db.prepare('SELECT * FROM sold_numbers WHERE number = ?').get(number);
-        if (sold) {
-            return res.json({ success: true, found: true, status: 'sold_no_info' });
-        }
-        
-        res.json({ success: true, found: false, status: 'available' });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
+  try {
+    const { number } = req.params;
+    const sold = db.prepare('SELECT * FROM sold_numbers WHERE number = ?').get(number);
+    
+    if (sold) {
+      const order = db.prepare('SELECT * FROM orders WHERE order_id = ?').get(sold.order_id);
+      if (order) {
+        order.numbers = JSON.parse(order.numbers);
+        return res.json({ success: true, found: true, status: 'confirmed', order });
+      }
     }
+    
+    const pending = db.prepare('SELECT * FROM orders WHERE status = ? AND numbers LIKE ?').get('pending', `%${number}%`);
+    if (pending) {
+      return res.json({ success: true, found: true, status: 'pending' });
+    }
+    
+    res.json({ success: true, found: false, status: 'available' });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
 });
 
-// Reiniciar rifa
-app.post('/api/reset', (req, res) => {
-    try {
-        db.prepare('DELETE FROM orders').run();
-        db.prepare('DELETE FROM sold_numbers').run();
-        db.prepare('DELETE FROM prize_images').run();
-        setConfig('prizeTitle', '');
-        setConfig('prizeDescription', '');
-        setConfig('prizeDate', '');
-        setConfig('prizeTime', '');
-        setConfig('prizePrice', '10');
-        setConfig('prizeDigits', '4');
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
+// Descargar respaldo
+app.get('/api/backup/download', (req, res) => {
+  try {
+    const orders = db.prepare('SELECT * FROM orders').all();
+    orders.forEach(o => o.numbers = JSON.parse(o.numbers));
+    
+    const soldNumbers = db.prepare('SELECT * FROM sold_numbers').all();
+    const configRows = db.prepare('SELECT * FROM config').all();
+    const config = {};
+    configRows.forEach(row => config[row.key] = row.value);
+    
+    const backup = {
+      exportDate: new Date().toISOString(),
+      totalOrders: orders.length,
+      confirmedOrders: orders.filter(o => o.status === 'confirmed').length,
+      pendingOrders: orders.filter(o => o.status === 'pending').length,
+      totalSoldNumbers: soldNumbers.length,
+      config,
+      orders,
+      soldNumbers
+    };
+    
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename=respaldo-fundabenefica-${Date.now()}.json`);
+    res.json(backup);
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
 });
 
 // Estadísticas
 app.get('/api/stats', (req, res) => {
-    try {
-        const soldCount = db.prepare('SELECT COUNT(*) as count FROM sold_numbers').get().count;
-        const pendingCount = db.prepare("SELECT COUNT(*) as count FROM orders WHERE status = 'pending'").get().count;
-        const confirmedCount = db.prepare("SELECT COUNT(*) as count FROM orders WHERE status = 'confirmed'").get().count;
-        const totalRevenue = db.prepare("SELECT SUM(total) as total FROM orders WHERE status = 'confirmed'").get().total || 0;
-        
-        res.json({
-            success: true,
-            stats: { soldCount, pendingCount, confirmedCount, totalRevenue }
-        });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
+  try {
+    const soldCount = db.prepare('SELECT COUNT(*) as count FROM sold_numbers').get().count;
+    const pendingCount = db.prepare('SELECT COUNT(*) as count FROM orders WHERE status = ?').get('pending').count;
+    const confirmedCount = db.prepare('SELECT COUNT(*) as count FROM orders WHERE status = ?').get('confirmed').count;
+    const totalRevenue = db.prepare('SELECT SUM(total) as total FROM orders WHERE status = ?').get('confirmed').total || 0;
+    
+    res.json({ success: true, soldCount, pendingCount, confirmedCount, totalRevenue });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
 });
 
-// Servir frontend
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// Reiniciar rifa
+app.post('/api/reset', (req, res) => {
+  try {
+    saveLocalBackup();
+    db.exec('DELETE FROM orders');
+    db.exec('DELETE FROM sold_numbers');
+    db.exec('DELETE FROM prize_images');
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
 });
 
 // Iniciar servidor
 app.listen(PORT, () => {
-    console.log(`
-╔════════════════════════════════════════════════════════════╗
-║                                                            ║
-║   🎁 FundaBenefica - Servidor Iniciado                     ║
-║                                                            ║
-║   📍 URL: http://localhost:${PORT}                           ║
-║   🗄️  Base de datos: fundabenefica.db                      ║
-║                                                            ║
-║   🔐 Contraseña admin por defecto: admin123                ║
-║                                                            ║
-╚════════════════════════════════════════════════════════════╝
-    `);
+  console.log('');
+  console.log('╔════════════════════════════════════════════╗');
+  console.log('║  🎁 FundaBenefica - Servidor Iniciado      ║');
+  console.log('╠════════════════════════════════════════════╣');
+  console.log(`║  🌐 Puerto: ${PORT}                            ║`);
+  console.log('║  🗄️  Base de datos: fundabenefica.db       ║');
+  console.log('║  🔑 Contraseña admin: admin123             ║');
+  console.log('╚════════════════════════════════════════════╝');
+  console.log('');
 });
