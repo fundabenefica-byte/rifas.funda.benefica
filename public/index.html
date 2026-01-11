@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 <style>
-:root{--gold:#FFD700;--emerald:#10B981;--ruby:#EF4444;--sapphire:#3B82F6;--purple:#8B5CF6;--dark:#0A0A0F;--darker:#050508;--card:rgba(255,255,255,0.03);--border:rgba(255,255,255,0.08);--text:#E5E5E5;--text-muted:#888;--sky:#87CEEB;--sky-light:#B0E2FF}
+:root{--gold:#FFD700;--emerald:#10B981;--ruby:#EF4444;--sapphire:#3B82F6;--purple:#8B5CF6;--dark:#0A0A0F;--darker:#050508;--card:rgba(255,255,255,0.03);--border:rgba(255,255,255,0.08);--text:#E5E5E5;--text-muted:#888;--sky:#87CEEB;--sky-light:#B0E2FF;--whatsapp:#25D366}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Outfit',sans-serif;background:var(--darker);color:var(--text);min-height:100vh;overflow-x:hidden}
 .sun-rays{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:200vmax;height:200vmax;z-index:0;pointer-events:none;opacity:0.12}
@@ -20,9 +20,12 @@ body{font-family:'Outfit',sans-serif;background:var(--darker);color:var(--text);
 .admin-login-modal.active{display:flex}
 .admin-login-box{background:var(--dark);border:1px solid var(--border);border-radius:24px;padding:40px;max-width:400px;width:90%}
 .admin-login-title{font-size:1.5rem;font-weight:700;margin-bottom:30px;text-align:center}
-.header-bar{display:none;justify-content:space-between;align-items:center;padding:15px 30px;background:rgba(0,0,0,0.3);border-bottom:1px solid var(--border);position:relative;z-index:10}
+.header-bar{display:none;justify-content:space-between;align-items:center;padding:15px 30px;background:rgba(0,0,0,0.3);border-bottom:1px solid var(--border);position:relative;z-index:10;flex-wrap:wrap;gap:10px}
 .header-bar.active{display:flex}
 .user-badge{display:flex;align-items:center;gap:10px;padding:10px 20px;background:linear-gradient(135deg,rgba(135,206,235,0.2),rgba(135,206,235,0.1));border:1px solid rgba(135,206,235,0.3);border-radius:50px;font-size:0.9rem}
+.header-actions{display:flex;gap:10px;flex-wrap:wrap}
+.backup-btn{padding:10px 20px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:10px;color:var(--emerald);cursor:pointer;font-size:0.9rem;transition:all 0.3s ease}
+.backup-btn:hover{background:var(--emerald);color:white}
 .logout-btn{padding:10px 20px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;color:var(--ruby);cursor:pointer;font-size:0.9rem;transition:all 0.3s ease}
 .logout-btn:hover{background:var(--ruby);color:white}
 header{text-align:center;padding:40px 20px 20px;position:relative;z-index:1}
@@ -125,8 +128,9 @@ header{text-align:center;padding:40px 20px 20px;position:relative;z-index:1}
 .order-image{margin-bottom:15px}
 .order-image img{max-width:100%;max-height:300px;border-radius:12px;cursor:pointer}
 .order-actions{display:flex;gap:10px;flex-wrap:wrap}
-.order-btn{padding:12px 20px;border-radius:10px;font-weight:600;cursor:pointer;transition:all 0.3s ease;font-size:0.9rem;border:none}
+.order-btn{padding:12px 20px;border-radius:10px;font-weight:600;cursor:pointer;transition:all 0.3s ease;font-size:0.9rem;border:none;display:flex;align-items:center;gap:8px}
 .order-btn.confirm{background:linear-gradient(135deg,var(--emerald),#059669);color:white}
+.order-btn.whatsapp{background:linear-gradient(135deg,var(--whatsapp),#128C7E);color:white}
 .order-btn.reject{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--ruby)}
 .order-btn:hover{transform:translateY(-2px)}
 .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);display:none;justify-content:center;align-items:center;z-index:1000;padding:20px}
@@ -220,7 +224,44 @@ footer{text-align:center;padding:40px 20px;color:var(--text-muted);font-size:0.8
 .digits-info-title{font-weight:700;color:var(--gold);margin-bottom:5px}
 .digits-info-value{font-family:'Space Mono',monospace;font-size:1.5rem}
 .db-badge{background:linear-gradient(135deg,var(--emerald),#059669);padding:5px 12px;border-radius:20px;font-size:0.75rem;color:white;margin-left:10px}
-@media(max-width:768px){.progress-stats{grid-template-columns:1fr}.total-section{flex-direction:column;text-align:center}.total-info{flex-direction:column;gap:15px}.form-row-4{grid-template-columns:1fr 1fr}.gallery-upload{grid-template-columns:repeat(3,1fr)}.winner-search{flex-direction:column}}
+.whatsapp-modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);display:none;align-items:center;justify-content:center;z-index:2002}
+.whatsapp-modal.active{display:flex}
+.whatsapp-box{background:var(--dark);border:2px solid var(--whatsapp);border-radius:24px;padding:40px;max-width:500px;width:90%;text-align:center}
+.whatsapp-icon{font-size:4rem;margin-bottom:20px}
+.whatsapp-title{font-size:1.5rem;font-weight:700;color:var(--whatsapp);margin-bottom:10px}
+.whatsapp-text{color:var(--text-muted);margin-bottom:25px}
+.whatsapp-link{display:inline-flex;align-items:center;gap:10px;padding:15px 30px;background:linear-gradient(135deg,var(--whatsapp),#128C7E);color:white;text-decoration:none;border-radius:12px;font-weight:700;font-size:1.1rem;transition:all 0.3s ease}
+.whatsapp-link:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(37,211,102,0.3)}
+.whatsapp-close{margin-top:20px;padding:10px 20px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);cursor:pointer}
+.quick-pay-banner{max-width:800px;margin:0 auto 30px;padding:0 20px}
+.quick-pay-banner>div:first-child,.quick-pay-banner>p,.quick-pay-banner>.banner-payment-methods,.quick-pay-banner>.banner-price,.quick-pay-banner>.banner-footer{background:linear-gradient(135deg,rgba(255,215,0,0.1),rgba(255,215,0,0.05));border:1px solid rgba(255,215,0,0.3);backdrop-filter:blur(10px)}
+.quick-pay-banner{background:linear-gradient(135deg,rgba(255,215,0,0.08),rgba(255,215,0,0.03));border:2px solid rgba(255,215,0,0.4);border-radius:20px;padding:25px;animation:bannerPulse 3s ease-in-out infinite}
+@keyframes bannerPulse{0%,100%{box-shadow:0 0 20px rgba(255,215,0,0.2)}50%{box-shadow:0 0 40px rgba(255,215,0,0.4)}}
+.banner-header{display:flex;align-items:center;gap:10px;margin-bottom:15px}
+.banner-icon{font-size:1.8rem;animation:bounce 1s ease infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+.banner-title{font-size:1.4rem;font-weight:700;color:var(--gold)}
+.banner-text{color:var(--text);line-height:1.6;margin-bottom:20px;font-size:1rem}
+.banner-payment-methods{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px;margin-bottom:20px}
+.banner-method{background:rgba(0,0,0,0.3);border-radius:12px;padding:15px;transition:all 0.3s ease}
+.banner-method:hover{transform:translateY(-3px);box-shadow:0 10px 25px rgba(0,0,0,0.3)}
+.banner-method-header{display:flex;align-items:center;gap:8px;font-weight:600;margin-bottom:12px;font-size:1rem}
+.banner-method-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem}
+.banner-method-icon.zelle{background:linear-gradient(135deg,#6B21A8,#9333EA)}
+.banner-method-icon.bank{background:linear-gradient(135deg,var(--sapphire),#2563EB)}
+.banner-method-icon.paypal{background:linear-gradient(135deg,#0070BA,#003087)}
+.banner-method-data{font-size:0.85rem}
+.banner-data-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);flex-wrap:wrap}
+.banner-data-row:last-child{border-bottom:none}
+.banner-data-row span{color:var(--text-muted);min-width:60px}
+.banner-data-row strong{color:var(--sky);font-family:'Space Mono',monospace;font-size:0.8rem;word-break:break-all}
+.banner-copy{padding:4px 8px;background:rgba(135,206,235,0.1);border:1px solid rgba(135,206,235,0.3);border-radius:6px;color:var(--sky);font-size:0.7rem;cursor:pointer;margin-left:auto}
+.banner-copy:hover{background:var(--sky);color:white}
+.banner-price{text-align:center;font-size:1.2rem;color:var(--text);padding:15px;background:rgba(255,215,0,0.1);border-radius:12px;margin-bottom:15px}
+.banner-price strong{color:var(--gold);font-size:1.4rem}
+.banner-footer{text-align:center;color:var(--gold);font-weight:600;font-size:0.95rem;padding:10px;background:rgba(255,215,0,0.15);border-radius:10px;animation:arrowBounce 1.5s ease infinite}
+@keyframes arrowBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(3px)}}
+@media(max-width:768px){.progress-stats{grid-template-columns:1fr}.total-section{flex-direction:column;text-align:center}.total-info{flex-direction:column;gap:15px}.form-row-4{grid-template-columns:1fr 1fr}.gallery-upload{grid-template-columns:repeat(3,1fr)}.winner-search{flex-direction:column}.header-bar{justify-content:center}}
 </style>
 </head>
 <body>
@@ -237,7 +278,19 @@ footer{text-align:center;padding:40px 20px;color:var(--text-muted);font-size:0.8
 </div>
 <div class="header-bar" id="header-bar">
 <div class="user-badge">👑 Admin <span class="db-badge">🗄️ SQLite</span></div>
+<div class="header-actions">
+<button class="backup-btn" onclick="downloadBackup()">💾 Respaldo</button>
 <button class="logout-btn" onclick="logout()">🚪 Salir</button>
+</div>
+</div>
+<div class="whatsapp-modal" id="whatsapp-modal">
+<div class="whatsapp-box">
+<div class="whatsapp-icon">📱</div>
+<h3 class="whatsapp-title">¡Enviar por WhatsApp!</h3>
+<p class="whatsapp-text">Click para enviar los números al cliente</p>
+<a id="whatsapp-link" class="whatsapp-link" href="#" target="_blank">📲 Abrir WhatsApp</a>
+<button class="whatsapp-close" onclick="closeWhatsappModal()">Cerrar</button>
+</div>
 </div>
 <div class="content-wrapper">
 <header><h1 class="logo">🎁 FundaBenefica</h1><p class="subtitle">Rifa Solidaria</p></header>
@@ -280,6 +333,40 @@ footer{text-align:center;padding:40px 20px;color:var(--text-muted);font-size:0.8
 <button class="tab-btn" onclick="switchTab('settings',this)">⚙️ Pagos</button>
 </div>
 <div id="guest-view">
+<div class="quick-pay-banner">
+<div class="banner-header">
+<span class="banner-icon">💡</span>
+<span class="banner-title">¡Ahorra tiempo!</span>
+</div>
+<p class="banner-text">¿Ya sabes cuántos números vas a jugar? Realiza tu pago ahora, toma captura del comprobante y luego selecciona tus números.</p>
+<div class="banner-payment-methods">
+<div class="banner-method">
+<div class="banner-method-header"><span class="banner-method-icon zelle">💜</span> Zelle</div>
+<div class="banner-method-data" id="banner-zelle">
+<div class="banner-data-row"><span>Email:</span><strong id="banner-zelle-email">-</strong><button class="banner-copy" onclick="copyBanner('banner-zelle-email')">📋</button></div>
+<div class="banner-data-row"><span>Tel:</span><strong id="banner-zelle-phone">-</strong><button class="banner-copy" onclick="copyBanner('banner-zelle-phone')">📋</button></div>
+<div class="banner-data-row"><span>Nombre:</span><strong id="banner-zelle-name">-</strong><button class="banner-copy" onclick="copyBanner('banner-zelle-name')">📋</button></div>
+</div>
+</div>
+<div class="banner-method">
+<div class="banner-method-header"><span class="banner-method-icon bank">🏦</span> Banco</div>
+<div class="banner-method-data" id="banner-bank">
+<div class="banner-data-row"><span>Banco:</span><strong id="banner-bank-name">-</strong></div>
+<div class="banner-data-row"><span>Cuenta:</span><strong id="banner-bank-account">-</strong><button class="banner-copy" onclick="copyBanner('banner-bank-account')">📋</button></div>
+<div class="banner-data-row"><span>Routing:</span><strong id="banner-bank-routing">-</strong><button class="banner-copy" onclick="copyBanner('banner-bank-routing')">📋</button></div>
+</div>
+</div>
+<div class="banner-method">
+<div class="banner-method-header"><span class="banner-method-icon paypal">🅿️</span> PayPal</div>
+<div class="banner-method-data" id="banner-paypal">
+<div class="banner-data-row"><span>Email:</span><strong id="banner-paypal-email">-</strong><button class="banner-copy" onclick="copyBanner('banner-paypal-email')">📋</button></div>
+<div class="banner-data-row"><span>Link:</span><strong id="banner-paypal-link">-</strong><button class="banner-copy" onclick="copyBanner('banner-paypal-link')">📋</button></div>
+</div>
+</div>
+</div>
+<div class="banner-price">💰 Precio por número: <strong>$<span id="banner-price">10</span>.00</strong></div>
+<div class="banner-footer">📸 Toma captura de tu pago y luego continúa seleccionando tus números abajo ⬇️</div>
+</div>
 <div class="control-panel">
 <div class="panel-title">🎲 Selecciona tus Números</div>
 <div class="quantity-selector">
@@ -293,7 +380,7 @@ footer{text-align:center;padding:40px 20px;color:var(--text-muted);font-size:0.8
 </div>
 <div class="hidden-numbers-box">
 <div class="hidden-icon">🔒</div>
-<div class="hidden-text">Tus números están ocultos.<br>Los recibirás por email al confirmar.</div>
+<div class="hidden-text">Tus números están ocultos.<br>Los recibirás por WhatsApp al confirmar.</div>
 <div class="hidden-count" id="hidden-count" style="display:none">0</div>
 </div>
 <div class="total-section">
@@ -347,12 +434,12 @@ footer{text-align:center;padding:40px 20px;color:var(--text-muted);font-size:0.8
 <div id="step-2" style="display:none">
 <div class="form-group"><label class="form-label">Nombre *</label><input type="text" class="form-input" id="customer-name"></div>
 <div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" id="customer-email"></div>
-<div class="form-group"><label class="form-label">Teléfono *</label><input type="tel" class="form-input" id="customer-phone"></div>
+<div class="form-group"><label class="form-label">WhatsApp * (con código de país)</label><input type="tel" class="form-input" id="customer-phone" placeholder="+58412..."></div>
 <div class="form-group"><label class="form-label">Comprobante *</label><div class="file-upload-area" id="upload-area" onclick="document.getElementById('file-input').click()"><div class="upload-icon">📸</div><div>Click para subir</div></div><input type="file" id="file-input" accept="image/*" style="display:none" onchange="handleFile(this)"><div class="file-preview" id="file-preview"><span>📄</span><div class="file-preview-info"><div class="file-preview-name" id="file-name"></div></div><button class="file-remove" onclick="removeFile()">✕</button></div></div>
 <div class="modal-nav"><button class="nav-btn secondary" onclick="showStep1()">←</button><button class="nav-btn submit" onclick="submitOrder()">✅ Enviar</button></div>
 </div>
 <div id="step-3" style="display:none">
-<div class="success-content"><div class="success-icon">🎉</div><h3 class="success-title">¡Enviado!</h3><p class="success-message">Verificaremos tu pago.</p><div class="success-box"><div class="success-box-title">📧 Te notificaremos a:</div><div class="success-box-text" id="final-email"></div></div></div>
+<div class="success-content"><div class="success-icon">🎉</div><h3 class="success-title">¡Enviado!</h3><p class="success-message">Te enviaremos tus números por WhatsApp cuando confirmemos tu pago.</p><div class="success-box"><div class="success-box-title">📱 WhatsApp</div><div class="success-box-text" id="final-phone"></div></div></div>
 <div class="modal-nav"><button class="nav-btn submit" onclick="closeAndReset()">🏠 Inicio</button></div>
 </div>
 </div>
@@ -371,11 +458,12 @@ async function init(){await loadConfig();setupEvents();renderGallery();startCaro
 async function loadConfig(){const r=await get('/config');if(r.success){cfg=r;DIGITS=parseInt(cfg.config.prizeDigits)||4;TOTAL=calcTotal(DIGITS);genNumbers();updateDisplay();await loadSold();updateProgress();}}
 async function loadSold(){const r=await get('/sold');if(r.success)soldNums=new Set(r.numbers);}
 function setupEvents(){document.querySelectorAll('.qty-btn').forEach(b=>b.onclick=function(){document.querySelectorAll('.qty-btn').forEach(x=>x.classList.remove('active'));this.classList.add('active');selQty=parseInt(this.dataset.qty);});document.getElementById('prize-digits').onchange=()=>{document.getElementById('digits-preview').textContent=calcTotal(parseInt(document.getElementById('prize-digits').value)).toLocaleString();};}
-function updateDisplay(){document.getElementById('prize-title-display').textContent=cfg.config.prizeTitle||'Gran Premio';document.getElementById('prize-description-display').textContent=cfg.config.prizeDescription||'Participa en nuestra rifa.';document.getElementById('prize-date-display').textContent=cfg.config.prizeDate||'Por definir';document.getElementById('prize-time-display').textContent=cfg.config.prizeTime||'Por definir';document.getElementById('price-display').textContent=cfg.config.prizePrice||10;updateCarousel();}
+function updateDisplay(){document.getElementById('prize-title-display').textContent=cfg.config.prizeTitle||'Gran Premio';document.getElementById('prize-description-display').textContent=cfg.config.prizeDescription||'Participa en nuestra rifa.';document.getElementById('prize-date-display').textContent=cfg.config.prizeDate||'Por definir';document.getElementById('prize-time-display').textContent=cfg.config.prizeTime||'Por definir';document.getElementById('price-display').textContent=cfg.config.prizePrice||10;updateCarousel();updateBanner();}
+function updateBanner(){const pay=cfg.payments||{};const price=cfg.config.prizePrice||10;document.getElementById('banner-price').textContent=price;document.getElementById('banner-zelle-email').textContent=pay.zelle?.email||'-';document.getElementById('banner-zelle-phone').textContent=pay.zelle?.phone||'-';document.getElementById('banner-zelle-name').textContent=pay.zelle?.name||'-';document.getElementById('banner-bank-name').textContent=pay.bank?.name||'-';document.getElementById('banner-bank-account').textContent=pay.bank?.account||'-';document.getElementById('banner-bank-routing').textContent=pay.bank?.routing||'-';document.getElementById('banner-paypal-email').textContent=pay.paypal?.email||'-';document.getElementById('banner-paypal-link').textContent=pay.paypal?.link||'-';}
+function copyBanner(id){navigator.clipboard.writeText(document.getElementById(id).textContent);toast('📋 Copiado');}
 function updateProgress(){const s=soldNums.size,a=TOTAL-s,p=((s/TOTAL)*100).toFixed(1);document.getElementById('sold-count').textContent=s.toLocaleString();document.getElementById('available-count').textContent=a.toLocaleString();document.getElementById('total-count').textContent=TOTAL.toLocaleString();document.getElementById('progress-percentage').textContent=p+'%';document.getElementById('progress-bar').style.width=p+'%';}
 function selectRandomNumbers(){const av=allNums.filter(n=>!soldNums.has(n)&&!selNums.has(n));if(!av.length){toast('❌ No hay disponibles');return;}const c=Math.min(selQty,av.length);av.sort(()=>Math.random()-0.5).slice(0,c).forEach(n=>selNums.add(n));toast('🎉 '+c+' seleccionados');if(typeof confetti==='function')confetti({particleCount:50,spread:60});updateSelection();}
 function updateSelection(){const c=selNums.size,p=parseFloat(cfg.config.prizePrice)||10;document.getElementById('hidden-count').style.display=c?'block':'none';document.getElementById('hidden-count').textContent=c+' números';document.getElementById('selected-count').textContent=c;document.getElementById('total-amount').textContent='$'+(c*p).toFixed(2);document.getElementById('checkout-btn').disabled=!c;}
-function clearSelection(){selNums.clear();updateSelection();}
 function openPaymentModal(){const c=selNums.size,p=parseFloat(cfg.config.prizePrice)||10;document.getElementById('summary-qty').textContent=c;document.getElementById('summary-total').textContent='$'+(c*p).toFixed(2);const pay=cfg.payments||{};document.getElementById('pay-zelle-email').textContent=pay.zelle?.email||'-';document.getElementById('pay-zelle-phone').textContent=pay.zelle?.phone||'-';document.getElementById('pay-bank-name').textContent=pay.bank?.name||'-';document.getElementById('pay-bank-account').textContent=pay.bank?.account||'-';document.getElementById('pay-paypal-email').textContent=pay.paypal?.email||'-';showStep1();document.getElementById('payment-modal').classList.add('active');}
 function closePaymentModal(){document.getElementById('payment-modal').classList.remove('active');}
 function showStep1(){document.getElementById('step-1').style.display='block';document.getElementById('step-2').style.display='none';document.getElementById('step-3').style.display='none';}
@@ -383,7 +471,7 @@ function showStep2(){document.getElementById('step-1').style.display='none';docu
 function showStep3(){document.getElementById('step-1').style.display='none';document.getElementById('step-2').style.display='none';document.getElementById('step-3').style.display='block';}
 function handleFile(inp){if(inp.files[0]){const f=inp.files[0],r=new FileReader();r.onload=e=>{uploadData=e.target.result;document.getElementById('file-name').textContent=f.name;document.getElementById('file-preview').classList.add('show');document.getElementById('upload-area').classList.add('has-file');};r.readAsDataURL(f);}}
 function removeFile(){uploadData=null;document.getElementById('file-input').value='';document.getElementById('file-preview').classList.remove('show');document.getElementById('upload-area').classList.remove('has-file');}
-async function submitOrder(){const nm=document.getElementById('customer-name').value.trim(),em=document.getElementById('customer-email').value.trim(),ph=document.getElementById('customer-phone').value.trim();if(!nm||!em||!ph||!uploadData){toast('❌ Completa todos los campos');return;}const p=parseFloat(cfg.config.prizePrice)||10;const r=await post('/orders',{name:nm,email:em,phone:ph,numbers:[...selNums],qty:selNums.size,total:selNums.size*p,image:uploadData});if(r.success){document.getElementById('final-email').textContent=em;showStep3();if(typeof confetti==='function')confetti({particleCount:100,spread:70});toast('✅ Enviado');}else{toast('❌ Error');}}
+async function submitOrder(){const nm=document.getElementById('customer-name').value.trim(),em=document.getElementById('customer-email').value.trim(),ph=document.getElementById('customer-phone').value.trim();if(!nm||!em||!ph||!uploadData){toast('❌ Completa todos los campos');return;}const p=parseFloat(cfg.config.prizePrice)||10;const r=await post('/orders',{name:nm,email:em,phone:ph,numbers:[...selNums],qty:selNums.size,total:selNums.size*p,image:uploadData});if(r.success){document.getElementById('final-phone').textContent=ph;showStep3();if(typeof confetti==='function')confetti({particleCount:100,spread:70});toast('✅ Enviado');}else{toast('❌ Error');}}
 function closeAndReset(){closePaymentModal();document.getElementById('customer-name').value='';document.getElementById('customer-email').value='';document.getElementById('customer-phone').value='';removeFile();selNums.clear();updateSelection();}
 function showAdminLogin(){document.getElementById('admin-login-modal').classList.add('active');}
 function hideAdminLogin(){document.getElementById('admin-login-modal').classList.remove('active');document.getElementById('admin-error').classList.remove('show');}
@@ -392,9 +480,10 @@ function logout(){showGuest();toast('👋');}
 function showGuest(){document.getElementById('guest-view').classList.remove('hidden');document.getElementById('admin-tabs').classList.remove('active');document.getElementById('header-bar').classList.remove('active');document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));}
 function showAdmin(){document.getElementById('guest-view').classList.add('hidden');document.getElementById('admin-tabs').classList.add('active');document.getElementById('header-bar').classList.add('active');switchTab('orders',document.querySelector('.tab-btn'));}
 function switchTab(tab,btn){document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));btn?.classList.add('active');document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));document.getElementById('tab-'+tab)?.classList.add('active');if(tab==='orders')loadPending();if(tab==='confirmed')loadConfirmed();if(tab==='settings')loadPaymentForm();if(tab==='prize')loadPrizeForm();}
-async function loadPending(){const r=await get('/orders/pending'),c=document.getElementById('pending-orders');if(!r.success||!r.orders?.length){c.innerHTML='<div class="empty-state"><div class="empty-icon">📭</div>Sin pedidos</div>';return;}c.innerHTML=r.orders.map(o=>'<div class="order-card"><div class="order-header"><div><div class="order-id">'+o.order_id+'</div><div class="order-date">'+o.created_at+'</div></div><span class="order-status pending">⏳</span></div><div class="order-details"><div class="order-detail"><div class="order-detail-label">Nombre</div><div class="order-detail-value">'+o.name+'</div></div><div class="order-detail"><div class="order-detail-label">Email</div><div class="order-detail-value">'+o.email+'</div></div><div class="order-detail"><div class="order-detail-label">Total</div><div class="order-detail-value">$'+o.total+'</div></div></div><div class="order-numbers-preview"><div class="order-numbers-title">🎫 '+o.qty+' números</div><div class="order-numbers-list">'+o.numbers.map(n=>'<span class="order-num">'+n+'</span>').join('')+'</div></div>'+(o.image?'<div class="order-image"><img src="'+o.image+'" onclick="showImage(this.src)"></div>':'')+'<div class="order-actions"><button class="order-btn confirm" onclick="confirmOrder(\''+o.order_id+'\')">✅ Confirmar</button><button class="order-btn reject" onclick="rejectOrder(\''+o.order_id+'\')">❌</button></div></div>').join('');}
-async function loadConfirmed(){const r=await get('/orders/confirmed'),c=document.getElementById('confirmed-orders');if(!r.success||!r.orders?.length){c.innerHTML='<div class="empty-state"><div class="empty-icon">📭</div>Sin confirmados</div>';return;}c.innerHTML=r.orders.map(o=>'<div class="order-card"><div class="order-header"><div><div class="order-id">'+o.order_id+'</div></div><span class="order-status confirmed">✅</span></div><div class="order-details"><div class="order-detail"><div class="order-detail-label">Nombre</div><div class="order-detail-value">'+o.name+'</div></div><div class="order-detail"><div class="order-detail-label">Email</div><div class="order-detail-value">'+o.email+'</div></div><div class="order-detail"><div class="order-detail-label">Total</div><div class="order-detail-value">$'+o.total+'</div></div></div><div class="order-numbers-preview"><div class="order-numbers-title">🎫 '+o.qty+'</div><div class="order-numbers-list">'+o.numbers.map(n=>'<span class="order-num">'+n+'</span>').join('')+'</div></div></div>').join('');}
-async function confirmOrder(id){const r=await post('/orders/'+id+'/confirm',{});if(r.success){await loadSold();updateProgress();loadPending();toast('✅ Confirmado');}else{toast('❌ Error');}}
+async function loadPending(){const r=await get('/orders/pending'),c=document.getElementById('pending-orders');if(!r.success||!r.orders?.length){c.innerHTML='<div class="empty-state"><div class="empty-icon">📭</div>Sin pedidos</div>';return;}c.innerHTML=r.orders.map(o=>'<div class="order-card"><div class="order-header"><div><div class="order-id">'+o.order_id+'</div><div class="order-date">'+o.created_at+'</div></div><span class="order-status pending">⏳</span></div><div class="order-details"><div class="order-detail"><div class="order-detail-label">Nombre</div><div class="order-detail-value">'+o.name+'</div></div><div class="order-detail"><div class="order-detail-label">Email</div><div class="order-detail-value">'+o.email+'</div></div><div class="order-detail"><div class="order-detail-label">WhatsApp</div><div class="order-detail-value">'+o.phone+'</div></div><div class="order-detail"><div class="order-detail-label">Total</div><div class="order-detail-value">$'+o.total+'</div></div></div><div class="order-numbers-preview"><div class="order-numbers-title">🎫 '+o.qty+' números</div><div class="order-numbers-list">'+o.numbers.map(n=>'<span class="order-num">'+n+'</span>').join('')+'</div></div>'+(o.image?'<div class="order-image"><img src="'+o.image+'" onclick="showImage(this.src)"></div>':'')+'<div class="order-actions"><button class="order-btn confirm" onclick="confirmOrder(\''+o.order_id+'\')">✅ Confirmar</button><button class="order-btn reject" onclick="rejectOrder(\''+o.order_id+'\')">❌</button></div></div>').join('');}
+async function loadConfirmed(){const r=await get('/orders/confirmed'),c=document.getElementById('confirmed-orders');if(!r.success||!r.orders?.length){c.innerHTML='<div class="empty-state"><div class="empty-icon">📭</div>Sin confirmados</div>';return;}c.innerHTML=r.orders.map(o=>'<div class="order-card"><div class="order-header"><div><div class="order-id">'+o.order_id+'</div></div><span class="order-status confirmed">✅</span></div><div class="order-details"><div class="order-detail"><div class="order-detail-label">Nombre</div><div class="order-detail-value">'+o.name+'</div></div><div class="order-detail"><div class="order-detail-label">WhatsApp</div><div class="order-detail-value">'+o.phone+'</div></div><div class="order-detail"><div class="order-detail-label">Total</div><div class="order-detail-value">$'+o.total+'</div></div></div><div class="order-numbers-preview"><div class="order-numbers-title">🎫 '+o.qty+'</div><div class="order-numbers-list">'+o.numbers.map(n=>'<span class="order-num">'+n+'</span>').join('')+'</div></div></div>').join('');}
+async function confirmOrder(id){const r=await post('/orders/'+id+'/confirm',{});if(r.success){await loadSold();updateProgress();loadPending();if(r.whatsappLink){document.getElementById('whatsapp-link').href=r.whatsappLink;document.getElementById('whatsapp-modal').classList.add('active');}toast('✅ Confirmado');}else{toast('❌ Error');}}
+function closeWhatsappModal(){document.getElementById('whatsapp-modal').classList.remove('active');}
 async function rejectOrder(id){if(!confirm('¿Rechazar pedido?'))return;await post('/orders/'+id+'/reject',{});loadPending();toast('❌ Rechazado');}
 function loadPaymentForm(){const p=cfg.payments||{};document.getElementById('zelle-email').value=p.zelle?.email||'';document.getElementById('zelle-phone').value=p.zelle?.phone||'';document.getElementById('zelle-name').value=p.zelle?.name||'';document.getElementById('bank-name').value=p.bank?.name||'';document.getElementById('bank-account').value=p.bank?.account||'';document.getElementById('bank-routing').value=p.bank?.routing||'';document.getElementById('paypal-email').value=p.paypal?.email||'';document.getElementById('paypal-link').value=p.paypal?.link||'';}
 function loadPrizeForm(){document.getElementById('prize-title').value=cfg.config.prizeTitle||'';document.getElementById('prize-description').value=cfg.config.prizeDescription||'';document.getElementById('prize-date').value=cfg.config.prizeDate||'';document.getElementById('prize-time').value=cfg.config.prizeTime||'';document.getElementById('prize-price').value=cfg.config.prizePrice||10;document.getElementById('prize-digits').value=cfg.config.prizeDigits||4;document.getElementById('digits-preview').textContent=TOTAL.toLocaleString();renderGallery();}
@@ -402,7 +491,7 @@ async function savePrizeConfig(){await post('/config/prize',{title:document.getE
 async function savePaymentConfig(type){let data={};if(type==='zelle')data={email:document.getElementById('zelle-email').value,phone:document.getElementById('zelle-phone').value,name:document.getElementById('zelle-name').value};else if(type==='bank')data={name:document.getElementById('bank-name').value,account:document.getElementById('bank-account').value,routing:document.getElementById('bank-routing').value};else if(type==='paypal')data={email:document.getElementById('paypal-email').value,link:document.getElementById('paypal-link').value};await post('/config/payment/'+type,data);await loadConfig();toast('✅ Guardado');}
 async function changeAdminPassword(){const p=document.getElementById('new-admin-pass').value;if(p.length<4){toast('❌ Mínimo 4 caracteres');return;}await post('/config/password',{password:p});document.getElementById('new-admin-pass').value='';toast('✅ Contraseña cambiada');}
 async function resetRaffle(){if(!confirm('⚠️ ¿Eliminar TODO?'))return;await post('/reset',{});await loadConfig();selNums.clear();updateSelection();toast('🔄 Reiniciado');}
-async function searchWinner(){const n=document.getElementById('winner-input').value.trim().padStart(DIGITS,'0'),res=document.getElementById('winner-result');if(!n){toast('❌ Ingresa número');return;}const r=await get('/winner/'+n);if(r.success&&r.found&&r.status==='confirmed'){const o=r.order;res.className='winner-result show found';res.innerHTML='<div class="winner-header"><div class="winner-icon">🏆</div><div><div class="winner-title">¡GANADOR!</div><div class="winner-number">#'+n+'</div></div></div><div class="winner-details"><div class="winner-detail"><div class="winner-detail-label">Nombre</div><div class="winner-detail-value">'+o.name+'</div></div><div class="winner-detail"><div class="winner-detail-label">Email</div><div class="winner-detail-value">'+o.email+'</div></div><div class="winner-detail"><div class="winner-detail-label">Teléfono</div><div class="winner-detail-value">'+o.phone+'</div></div></div>';if(typeof confetti==='function')confetti({particleCount:100,spread:70});}else{res.className='winner-result show available';res.innerHTML='<div class="winner-header"><div class="winner-icon">📭</div><div><div class="winner-title">Disponible</div><div class="winner-number">#'+n+'</div></div></div>';}}
+async function searchWinner(){const n=document.getElementById('winner-input').value.trim().padStart(DIGITS,'0'),res=document.getElementById('winner-result');if(!n){toast('❌ Ingresa número');return;}const r=await get('/winner/'+n);if(r.success&&r.found&&r.status==='confirmed'){const o=r.order;res.className='winner-result show found';res.innerHTML='<div class="winner-header"><div class="winner-icon">🏆</div><div><div class="winner-title">¡GANADOR!</div><div class="winner-number">#'+n+'</div></div></div><div class="winner-details"><div class="winner-detail"><div class="winner-detail-label">Nombre</div><div class="winner-detail-value">'+o.name+'</div></div><div class="winner-detail"><div class="winner-detail-label">WhatsApp</div><div class="winner-detail-value">'+o.phone+'</div></div><div class="winner-detail"><div class="winner-detail-label">Email</div><div class="winner-detail-value">'+o.email+'</div></div></div>';if(typeof confetti==='function')confetti({particleCount:100,spread:70});}else{res.className='winner-result show available';res.innerHTML='<div class="winner-header"><div class="winner-icon">📭</div><div><div class="winner-title">Disponible</div><div class="winner-number">#'+n+'</div></div></div>';}}
 function renderGallery(){const g=document.getElementById('gallery-upload'),imgs=cfg.images||[];let h='';for(let i=0;i<5;i++){const img=imgs[i];h+='<div class="gallery-slot '+(img?'has-image':'')+'" onclick="galleryClick('+i+')">'+(img?'<img src="'+img+'">':'')+'<button class="remove-img" onclick="event.stopPropagation();removeImage('+i+')">✕</button><div class="add-icon"><span>➕</span></div></div>';}g.innerHTML=h;}
 async function galleryClick(i){if(cfg.images&&cfg.images[i])return;const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.onchange=async e=>{if(e.target.files[0]){const r=new FileReader();r.onload=async ev=>{await post('/images',{image:ev.target.result,position:i});await loadConfig();toast('✅ Imagen guardada');};r.readAsDataURL(e.target.files[0]);}};inp.click();}
 async function removeImage(i){await del('/images/'+i);await loadConfig();toast('🗑️ Eliminada');}
@@ -414,9 +503,9 @@ function goSlide(i){curSlide=i;updateSlide();}
 function startCarousel(){setInterval(nextSlide,4000);}
 function showImage(src){document.getElementById('modal-image').src=src;document.getElementById('image-modal').classList.add('active');}
 function copyText(id){navigator.clipboard.writeText(document.getElementById(id).textContent);toast('📋 Copiado');}
+function downloadBackup(){window.open('/api/backup/download','_blank');toast('💾 Descargando respaldo');}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('active');setTimeout(()=>t.classList.remove('active'),3000);}
 document.addEventListener('DOMContentLoaded',init);
 </script>
 </body>
 </html>
-
